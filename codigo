@@ -1,0 +1,118 @@
+import numpy as np # Importa la librería NumPy para operaciones numéricas y matriciales
+import pandas as pd # Importa la librería Pandas para manipulación y análisis de datos (DataFrames)
+import matplotlib.pyplot as plt # Importa Matplotlib para la creación de gráficos y visualizaciones
+import seaborn as sn # Importa Seaborn para visualizaciones estadísticas de datos, basado en Matplotlib
+
+from sklearn.model_selection import train_test_split # Importa train_test_split para dividir los datos en conjuntos de entrenamiento y prueba
+from sklearn.preprocessing import StandardScaler # Importa StandardScaler para escalar las características (normalización)
+from sklearn.linear_model import LogisticRegression # Importa LogisticRegression para el modelo de regresión logística
+from sklearn.svm import SVC # Importa SVC (Support Vector Classifier) para el modelo de Máquinas de Vectores de Soporte
+from xgboost import XGBClassifier # Importa XGBClassifier para el modelo de clasificación XGBoost
+from sklearn import metrics # Importa metrics de scikit-learn para evaluar el rendimiento de los modelos
+
+import warnings # Importa la librería warnings para controlar las advertencias
+warnings.filterwarnings('ignore') # Ignora las advertencias para una salida más limpia
+
+df = pd.read_csv('bitcoin.csv') # Carga el archivo CSV 'bitcoin.csv' en un DataFrame de Pandas
+df.head() # Muestra las primeras 5 filas del DataFrame para una vista previa de los datos
+
+df.shape # Muestra el número de filas y columnas del DataFrame
+
+df.describe() # Genera estadísticas descriptivas del DataFrame (media, desviación estándar, etc.)
+
+df.info() # Muestra un resumen del DataFrame, incluyendo el tipo de datos de cada columna y la cantidad de valores no nulos
+
+plt.figure(figsize=(15, 5)) # Crea una figura de Matplotlib con un tamaño específico (ancho, alto)
+plt.plot(df['Close']) # Grafica el precio de cierre de Bitcoin a lo largo del tiempo
+plt.title('Bitcoin Close price.', fontsize=15) # Establece el título del gráfico con un tamaño de fuente específico
+plt.ylabel('Price in dollars.') # Establece la etiqueta del eje Y
+plt.show() # Muestra el gráfico
+
+# Compara las columnas 'Close' y 'Adj Close' para ver si son idénticas y muestra sus dimensiones
+df[df['Close'] == df['Adj Close']].shape, df.shape
+
+df = df.drop(['Adj Close'], axis=1) # Elimina la columna 'Adj Close' ya que es idéntica a 'Close'
+
+df.isnull().sum() # Cuenta el número de valores nulos en cada columna del DataFrame
+
+features = ['Open', 'High', 'Low', 'Close'] # Define una lista de columnas que se consideran características
+
+plt.subplots(figsize=(20,10)) # Crea una figura y un conjunto de subtramas con un tamaño específico
+for i, col in enumerate(features): # Itera sobre cada característica en la lista 'features'
+  plt.subplot(2,2,i+1) # Crea una subtrama en una cuadrícula de 2x2 para cada característica
+  sn.distplot(df[col]) # Grafica la distribución de cada característica usando un histograma con estimación de densidad del kernel
+plt.show() # Muestra los gráficos de distribución
+
+plt.subplots(figsize=(20,10)) # Crea otra figura y un conjunto de subtramas
+for i, col in enumerate(features): # Itera sobre cada característica
+  plt.subplot(2,2,i+1) # Crea una subtrama en una cuadrícula de 2x2
+  sn.boxplot(df[col], orient='h') # Grafica un diagrama de caja horizontal para cada característica para identificar valores atípicos
+plt.show() # Muestra los diagramas de caja
+
+splitted = df['Date'].str.split('-', expand=True) # Divide la columna 'Date' en año, mes y día, creando nuevas columnas
+
+df['year'] = splitted[0].astype('int') # Extrae el año y lo convierte a tipo entero
+df['month'] = splitted[1].astype('int') # Extrae el mes y lo convierte a tipo entero
+df['day'] = splitted[2].astype('int') # Extrae el día y lo convierte a tipo entero
+
+df['Date'] = pd.to_datetime(df['Date']) # Convierte la columna 'Date' a objetos datetime (formato de fecha y hora)
+
+df.head() # Muestra las primeras filas del DataFrame con las nuevas columnas de fecha
+
+# Este código fue modificado por Susobhan Akhuli
+data_grouped = df.groupby('year').mean() # Agrupa los datos por año y calcula el promedio de las columnas numéricas
+plt.subplots(figsize=(20,10)) # Crea una figura y un conjunto de subtramas
+for i, col in enumerate(['Open', 'High', 'Low', 'Close']): # Itera sobre las columnas de precios
+  plt.subplot(2,2,i+1) # Crea una subtrama
+  data_grouped[col].plot.bar() # Grafica el promedio de los precios de apertura, máximo, mínimo y cierre por año en barras
+plt.show() # Muestra los gráficos de barras
+
+df['is_quarter_end'] = np.where(df['month']%3==0,1,0) # Crea una nueva columna 'is_quarter_end' que indica si el mes es el final de un trimestre (1 si es, 0 si no)
+df.head() # Muestra las primeras filas con la nueva columna
+
+df['open-close'] = df['Open'] - df['Close'] # Crea una nueva característica: la diferencia entre el precio de apertura y el de cierre
+df['low-high'] = df['Low'] - df['High'] # Crea una nueva característica: la diferencia entre el precio mínimo y el máximo
+df['target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0) # Crea la variable objetivo: 1 si el precio de cierre del día siguiente es mayor que el actual, 0 en caso contrario
+
+plt.pie(df['target'].value_counts().values, # Grafica un diagrama de pastel de la distribución de la variable objetivo
+        labels=[0, 1], autopct='%1.1f%%') # Muestra las etiquetas (0 y 1) y el porcentaje de cada categoría
+plt.show() # Muestra el diagrama de pastel
+
+plt.figure(figsize=(10, 10)) # Crea una figura para el mapa de calor
+
+sn.heatmap(df.corr() > 0.9, annot=True, cbar=False) # Genera un mapa de calor de las correlaciones entre las columnas, resaltando las correlaciones mayores a 0.9
+plt.show() # Muestra el mapa de calor
+
+# Se vuelven a importar las librerías de scikit-learn, aunque ya se habían importado al inicio del script.
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Se asume que 'df' ya está definido y cargado
+features = df[['open-close', 'low-high', 'is_quarter_end']] # Define las características (variables predictoras) a usar para el modelo
+target = df['target'] # Define la variable objetivo (lo que queremos predecir)
+
+scaler = StandardScaler() # Inicializa el escalador para estandarizar los datos
+features = scaler.fit_transform(features) # Escala las características para que tengan media 0 y varianza 1
+
+# Divide los datos en conjuntos de entrenamiento y validación (prueba)
+X_train, X_valid, Y_train, Y_valid = train_test_split(features, target, test_size=0.3, random_state=42)
+# 'test_size=0.3' significa que el 30% de los datos se usará para pruebas y el 70% para entrenamiento
+# 'random_state=42' asegura que la división de los datos sea la misma cada vez que se ejecute el código (para reproducibilidad)
+
+models = [LogisticRegression(), SVC(kernel='poly', probability=True), XGBClassifier()] # Define una lista de modelos a entrenar
+
+for i in range(3): # Itera a través de cada modelo en la lista
+  models[i].fit(X_train, Y_train) # Entrena el modelo con los datos de entrenamiento
+
+  print(f'{models[i]} : ') # Imprime el nombre del modelo
+  # Calcula e imprime la precisión de entrenamiento (AUC-ROC)
+  print('Training Accuracy : ', metrics.roc_auc_score(Y_train, models[i].predict_proba(X_train)[:,1]))
+  # Calcula e imprime la precisión de validación (AUC-ROC)
+  print('Validation Accuracy : ', metrics.roc_auc_score(Y_valid, models[i].predict_proba(X_valid)[:,1]))
+  print() # Imprime una línea en blanco para separar la salida de cada modelo
+
+from sklearn.metrics import ConfusionMatrixDisplay # Importa ConfusionMatrixDisplay para visualizar la matriz de confusión
+
+# Muestra la matriz de confusión para el primer modelo (Logistic Regression) en el conjunto de validación
+ConfusionMatrixDisplay.from_estimator(models[0], X_valid, Y_valid, cmap='Blues')
+plt.show() # Muestra la matriz de confusión
